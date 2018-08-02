@@ -1,7 +1,9 @@
 var tiempoAEsperarEnSegundos = 60;
+//NO CAMBIAR DE ACA PARA ABAJO
 var tiempoLargo = 1000;
 var tiempoCorto = 100;
 var expirar = true;
+var captchaSolution = {idCaptcha : null , solucion : null};
 
 function existeID(nombreID) {
 	return document.getElementById(nombreID)!==null;
@@ -15,15 +17,14 @@ function run() {
     ponerEnCondiciones()
     .then(accionarRapinia)
     .then(finalizar)
-    .catch(()=>alert("error"))
+    .catch(()=>run())
 }
 
 function finalizar() {
 	if(existeID("captcha")) {
-		atenderCaptcha();
+        setTimeout(atenderCaptchav2,5000);
 	}else {
-
-        esperarElemento(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar).then(run).catch(()=>alert('error'));
+        esperarElemento(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar).then(run);
 	}	
 }
 
@@ -49,19 +50,24 @@ function accionarRapinia() {
 
 function esperarElemento(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,...args) {
     return new Promise((resolve,reject) => {
-        var numeroDeVeces = 0;
-        setInterval(function() {   
+        var ejecutor;
+        var tiempoRestante = tiempoAEsperarEnSegundos*1000;
+        ejecutor = setInterval(function(){
             if(condicionACumplir(...args)) {
-                clearInterval(this);
-                return resolve();
-            } else if(expiraTiempo && numeroDeVeces>tiempoAEsperarEnSegundos*10){
-                clearInterval(this);
-                return reject();
+                clearInterval(ejecutor);
+                resolve();
+            } else if(expiraTiempo && tiempoRestante<0){
+                clearInterval(ejecutor);
+                reject();
             } else {
-                numeroDeVeces++;
+                tiempoRestante -= tiempoMsEntreEjecucion;
             }
-        },tiempoMsEntreEjecucion)  
+        },tiempoMsEntreEjecucion);
     })
+}
+
+function createDelay(tiempo) {
+    return new Promise ((resolve) => {setTimeout(resolve,tiempo)});
 }
 
 function abrirMenu(elementoClickeable, menuID) {
@@ -111,11 +117,89 @@ function hacerPiratas() {
             return Number(document.getElementsByClassName("sliderbg")[0].attributes.title.value)!==0;
         },tiempoCorto,expirar)
     }).then(() => {
-        document.getElementById("CPToCrewSubmit").click();
+        obtenerID("CPToCrewSubmit").click();
         return esperarElemento(existeID,tiempoCorto,expirar,"ongoingConversion");
     }).then(()=> {
         obtenerID("js_tabBootyQuest").click();
-    }).catch(()=> alert("ERROR"));
+    });
 }
 
-run();
+//----------------------WEB PART
+function imagenToBase64() {
+    return new Promise((response, reject) => {
+        var image = document.getElementsByClassName('captchaImage')[0];
+        image.crossOrigin = 'Anonymous';
+        var canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+        canvas.height = image.naturalHeight;
+        canvas.width = image.naturalWidth;
+        context.drawImage(image,0,0);
+        var dataURL = canvas.toDataURL('image/png');
+        return response(dataURL);
+    })
+}
+
+function enviarCaptcha(apiKey, metodo, img64){
+    var data = {key: apiKey, method: metodo, body: img64, header_acao: 1};
+    return fetch('https://2captcha.com/in.php', {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+}
+
+function atenderCaptchav2() {
+    reiniciarCaptchaSolution();
+    var method='base64';
+    var apiKey='140cc084101706e4476413925a9d9b09';
+    imagenToBase64()
+    .then(function(imgBase64) {return enviarCaptcha(apiKey,method,imgBase64)})
+    .then(response => response.text())
+    .then(data =>{return new Promise((resolve,reject) => {
+                                        captchaSolution.idCaptcha = getInfo(data); 
+                                        return resolve();
+                                    });
+                })
+    .then(() => {setTimeout(getCaptchaResuelto,8000,apiKey,captchaSolution.idCaptcha)
+                return esperarElemento(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar);})
+    .then(() => {
+                var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
+                var botonAbordar = getBotonAbordarCaptcha();
+                botonAbordar.onclick = function(){
+                    esperarElemento(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar)
+                    .then(finalizar).catch(()=>alert("error"))};
+                obtenerID('captcha').value = captchaSolution.solucion;
+                return esperarElemento(function(){return obtenerID('captcha').value.length!==0;},tiempoCorto,!expirar);
+                })
+    .then(() => getBotonAbordarCaptcha().click());
+}
+
+function getCaptchaResuelto(apiKey, idCaptcha) {
+    var data = {key: apiKey, action: 'get', id: idCaptcha, header_acao : 1};
+    var url = new URL('https://2captcha.com/res.php');
+    Object.keys(data).forEach(key => url.searchParams.append(key, data[key]));
+    fetch(url,{method: "GET"})
+    .then(response => response.text())
+    .then(data => {
+        if(data==='CAPCHA_NOT_READY') {
+            setTimeout(getCaptchaResuelto,8000,apiKey,idCaptcha);
+        } else if (data==='ERROR_CAPTCHA_UNSOLVABLE'){
+            captchaSolution.solucion = 'error'
+        }else {
+            captchaSolution.solucion = getInfo(data);
+        }
+    })
+}
+
+function getInfo(respuesta) {
+    return respuesta.substring(respuesta.indexOf('|')+1, respuesta.length);
+}
+
+function reiniciarCaptchaSolution() {
+    captchaSolution = {idCaptcha : null , solucion : null};
+}
+
+function getBotonAbordarCaptcha() {
+    var fortalezaMenu = obtenerID("pirateFortress");
+    var botonAbordar = document.getElementsByClassName("centerButton")[0].getElementsByTagName("input")[0];
+    return botonAbordar;
+}
