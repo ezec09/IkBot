@@ -1,4 +1,5 @@
 var tiempoLimite = 60;
+var fabricarPiratas = true;
 //NO CAMBIAR DE ACA PARA ABAJO
 var tiempoLargo = 1000;
 var tiempoCorto = 100;
@@ -24,6 +25,7 @@ function finalizar() {
 	if(existeID("captcha")) {
         setTimeout(atenderCaptchav2,5000);
 	}else {
+        hacerPiratas();
         esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar,tiempoLimite).then(run);
 	}	
 }
@@ -92,21 +94,29 @@ function ponerEnCondiciones() {
 }
 
 function hacerPiratas() {
-    obtenerID("js_tabCrew").click();
-    esperarCondicion(existeID,tiempoCorto,expirar,tiempoLimite,"CPToCrewInput")
-    .then(() => {
-        setTimeout(()=>{obtenerID("CPToCrewSliderMax").click();},2000);
-         return esperarCondicion(function() {
-            return Number(document.getElementsByClassName("sliderbg")[0].attributes.title.value)!==0;
-        },tiempoCorto,expirar,tiempoLimite)
-    }).then(() => {
-        obtenerID("CPToCrewSubmit").click();
-        return esperarCondicion(existeID,tiempoCorto,expirar,tiempoLimite,"ongoingConversion");
-    }).then(()=> {
-        obtenerID("js_tabBootyQuest").click();
-    });
+	if(fabricarPiratas && !hayPiratasHaciendose()) {
+		setTimeout(abrirMenuTripulacion,2000);
+		setTimeout(maximizarBarraYActivar,3000);
+		setTimeout(abrirMenuRapinia,4000);
+	}
 }
 
+function abrirMenuRapinia() {
+	document.getElementById("js_tabBootyQuest").click();
+}
+
+function abrirMenuTripulacion() {
+	document.getElementById("js_tabCrew").click();
+}
+
+function maximizarBarraYActivar() {
+	document.getElementById("CPToCrewSliderMax").click();
+	setTimeout(document.getElementById("CPToCrewSubmit").click(),1000);
+}
+
+function hayPiratasHaciendose() {
+	return document.getElementById("ongoingConversion")!=null;
+}
 //----------------------WEB PART
 function prepararImagenParaEnviar() {
     return new Promise((response, reject) => {
