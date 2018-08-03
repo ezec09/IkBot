@@ -1,4 +1,4 @@
-var tiempoAEsperarEnSegundos = 60;
+var tiempoLimite = 60;
 //NO CAMBIAR DE ACA PARA ABAJO
 var tiempoLargo = 1000;
 var tiempoCorto = 100;
@@ -24,7 +24,7 @@ function finalizar() {
 	if(existeID("captcha")) {
         setTimeout(atenderCaptchav2,5000);
 	}else {
-        esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar).then(run);
+        esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar,tiempoLimite).then(run);
 	}	
 }
 
@@ -33,17 +33,17 @@ function accionarRapinia() {
     var columnaDeBotones = fortalezaMenu.getElementsByClassName("action");
     var botonAClickear = columnaDeBotones[1].getElementsByClassName("button capture")[0];
     setTimeout(()=>{botonAClickear.click()},1000);
-    return esperarCondicion(function(){return(existeID("missionProgressBar") || existeID("captcha"))},tiempoCorto,expirar);
+    return esperarCondicion(function(){return(existeID("missionProgressBar") || existeID("captcha"))},tiempoCorto,expirar,10);
 }
 
-function esperarCondicion(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,...args) {
+function esperarCondicion(condicionACumplir,tiempoMsEntreEjecucion,expirable,tiempoAExpirar,...args) {
     return new Promise((resolve,reject) => {
-        var tiempoRestante = tiempoAEsperarEnSegundos*1000;
+        var tiempoRestante = tiempoAExpirar*1000;
         var ejecutor = setInterval(function(){
             if(condicionACumplir(...args)) {
                 clearInterval(ejecutor);
                 resolve();
-            } else if(expiraTiempo && tiempoRestante<0){
+            } else if(expirable && tiempoRestante<0){
                 clearInterval(ejecutor);
                 reject();
             } else {
@@ -55,12 +55,12 @@ function esperarCondicion(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,
 
 function abrirMenu(elementoClickeable, menuID) {
     elementoClickeable.click();
-    return esperarCondicion(existeID,tiempoLargo,expirar,menuID);
+    return esperarCondicion(existeID,tiempoLargo,expirar,tiempoLimite,menuID);
 }
 
 function cerrarMenu(elementoClickeable, menuID) {
     elementoClickeable.click();
-    return esperarCondicion(function(menuNombre){return !existeID(menuNombre)},tiempoCorto,expirar,menuID);
+    return esperarCondicion(function(menuNombre){return !existeID(menuNombre)},tiempoCorto,expirar,tiempoLimite,menuID);
 }
 
 function cerrarMenuRapinia() {
@@ -93,15 +93,15 @@ function ponerEnCondiciones() {
 
 function hacerPiratas() {
     obtenerID("js_tabCrew").click();
-    esperarCondicion(existeID,tiempoCorto,expirar,"CPToCrewInput")
+    esperarCondicion(existeID,tiempoCorto,expirar,tiempoLimite,"CPToCrewInput")
     .then(() => {
         setTimeout(()=>{obtenerID("CPToCrewSliderMax").click();},2000);
          return esperarCondicion(function() {
             return Number(document.getElementsByClassName("sliderbg")[0].attributes.title.value)!==0;
-        },tiempoCorto,expirar)
+        },tiempoCorto,expirar,tiempoLimite)
     }).then(() => {
         obtenerID("CPToCrewSubmit").click();
-        return esperarCondicion(existeID,tiempoCorto,expirar,"ongoingConversion");
+        return esperarCondicion(existeID,tiempoCorto,expirar,tiempoLimite,"ongoingConversion");
     }).then(()=> {
         obtenerID("js_tabBootyQuest").click();
     });
@@ -145,17 +145,17 @@ function atenderCaptchav2() {
 
 function esperarSolucion() {
     setTimeout(getCaptchaResuelto,8000,apiKey,captchaSolution.idCaptcha)
-    return esperarCondicion(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar);
+    return esperarCondicion(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar,tiempoLimite);
 }
 
 function ponerSolucionCaptcha() {
     var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
     getBotonAbordarCaptcha().botonAbordar.onclick = function() {
-                                esperarCondicion(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar)
+                                esperarCondicion(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar,tiempoLimite)
                                 .then(finalizar)
                             };
     obtenerID('captcha').value = captchaSolution.solucion;
-    return esperarCondicion(function(){return obtenerID('captcha').value.length!==0;},tiempoCorto,!expirar);
+    return esperarCondicion(function(){return obtenerID('captcha').value.length!==0;},tiempoCorto,!expirar,tiempoLimite);
 }
 
 function getCaptchaResuelto(apiKey, idCaptcha) {
