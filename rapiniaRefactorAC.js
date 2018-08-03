@@ -5,6 +5,7 @@ var tiempoLargo = 1000;
 var tiempoCorto = 100;
 var expirar = true;
 var captchaSolution = {idCaptcha : null , solucion : null};
+var hudika = null;
 
 function existeID(nombreID) {
 	return document.getElementById(nombreID)!==null;
@@ -15,6 +16,10 @@ function obtenerID(nombreID) {
 }
 
 function run() {
+    if(hudika === null) {
+        hudika = new Hudika();
+        hudika.loguear("Scrip iniciando...");
+    }
     ponerEnCondiciones()
     .then(accionarRapinia)
     .then(finalizar)
@@ -22,7 +27,9 @@ function run() {
 }
 
 function finalizar() {
+    hudika.loguear("Mision de rapinia iniciada");
 	if(existeID("captcha")) {
+        hudika.loguear("Resolviendo captcha...");
         setTimeout(atenderCaptchav2,5000);
 	}else {
         hacerPiratas();
@@ -34,7 +41,8 @@ function accionarRapinia() {
     var fortalezaMenu = obtenerID("pirateFortress");
     var columnaDeBotones = fortalezaMenu.getElementsByClassName("action");
     var botonAClickear = columnaDeBotones[1].getElementsByClassName("button capture")[0];
-    setTimeout(()=>{botonAClickear.click()},1000);
+    if(botonAClickear !== null)
+        setTimeout(()=>{botonAClickear.click()},1000);
     return esperarCondicion(function(){return(existeID("missionProgressBar") || existeID("captcha"))},tiempoCorto,expirar,10);
 }
 
@@ -95,6 +103,7 @@ function ponerEnCondiciones() {
 
 function hacerPiratas() {
 	if(fabricarPiratas && !hayPiratasHaciendose()) {
+        hudika.loguear("Produccion de piratas iniciada");
 		setTimeout(abrirMenuTripulacion,2000);
 		setTimeout(maximizarBarraYActivar,3000);
 		setTimeout(abrirMenuRapinia,4000);
@@ -115,7 +124,7 @@ function maximizarBarraYActivar() {
 }
 
 function hayPiratasHaciendose() {
-	return document.getElementById("ongoingConversion")!=null;
+	return document.getElementById("ongoingConversion")!==null;
 }
 //----------------------WEB PART
 function prepararImagenParaEnviar() {
@@ -154,13 +163,14 @@ function atenderCaptchav2() {
 }
 
 function esperarSolucion() {
+    var apiKey='140cc084101706e4476413925a9d9b09';
     setTimeout(getCaptchaResuelto,8000,apiKey,captchaSolution.idCaptcha)
     return esperarCondicion(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar,tiempoLimite);
 }
 
 function ponerSolucionCaptcha() {
     var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
-    getBotonAbordarCaptcha().botonAbordar.onclick = function() {
+    getBotonAbordarCaptcha().onclick = function() {
                                 esperarCondicion(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar,tiempoLimite)
                                 .then(finalizar)
                             };
@@ -174,7 +184,7 @@ function getCaptchaResuelto(apiKey, idCaptcha) {
     Object.keys(data).forEach(key => url.searchParams.append(key, data[key]));
     fetch(url,{method: "GET"})
     .then(response => response.text())
-    .then(data => procesarRespuestaCaptchaResulto(data));
+    .then(data => procesarRespuestaCaptchaResulto(data,apiKey,idCaptcha));
 }
 
 function getInfo(respuesta) {
@@ -195,12 +205,55 @@ function wrapFunctionIntoPromise(funcion) {
     return new Promise((resolve)=>{funcion();resolve()})
 }
 
-function procesarRespuestaCaptchaResulto(respuesta) {
+function procesarRespuestaCaptchaResulto(respuesta,apiKey,idCaptcha) {
     if(respuesta==='CAPCHA_NOT_READY') {
         setTimeout(getCaptchaResuelto,8000,apiKey,idCaptcha);
     } else if (respuesta==='ERROR_CAPTCHA_UNSOLVABLE'){
+        hudika.loguear("No pudieron resolver captcha. Intentando con otro");
         captchaSolution.solucion = 'error'
     }else {
         captchaSolution.solucion = getInfo(respuesta);
     }
+}
+
+function Hudika() {
+    this.body = document.querySelector('body');
+    this.contenedor = document.createElement('div');
+    this.status = document.createElement('p');
+    this.logger = document.createElement('p');
+    function inicializarContenedor(contenedor){
+        contenedor.style.backgroundColor = 'white';
+        contenedor.style.width = '500px';
+        contenedor.style.height = '250px';
+        contenedor.style.position = 'fixed';
+        contenedor.style.zIndex = '900';
+        contenedor.style.top = '60%';
+        contenedor.style.left = '5%'; 
+    };
+    function inicializarStatus(status){
+        status.style.border = 'solid'
+        status.style.height = '96px';
+        status.style.overflowY = 'scroll';
+        status.style.padding = '2px';
+    };
+    function inicializarLogger(logger) {
+        logger.style.border = 'solid red'
+        logger.style.height = '136px';
+        logger.style.overflowY = 'scroll';
+        logger.style.padding = '2px';
+    };
+    inicializarContenedor(this.contenedor);
+    inicializarStatus(this.status);
+    inicializarLogger(this.logger);
+    this.body.insertBefore(this.contenedor,this.body.firstChild);
+    this.contenedor.append(this.status);
+    this.contenedor.append(this.logger);
+    this.loguear = function(texto){setTimeout(() => {
+        var currentdate = new Date(); 
+        var datetime = currentdate.getHours() + ":"  
+                        + currentdate.getMinutes() + ":" 
+                        + currentdate.getSeconds();
+        this.logger.append(datetime + " Log: " + texto);
+        this.logger.appendChild(document.createElement('br'))
+    },100)};
 }
