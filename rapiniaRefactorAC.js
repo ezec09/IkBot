@@ -24,20 +24,8 @@ function finalizar() {
 	if(existeID("captcha")) {
         setTimeout(atenderCaptchav2,5000);
 	}else {
-        esperarElemento(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar).then(run);
+        esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar).then(run);
 	}	
-}
-
-function atenderCaptcha() {
-    window.alert("Solucionar Captcha");
-    var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
-	var fortalezaMenu = obtenerID("pirateFortress");
-	var botonAbordar = document.getElementsByClassName("centerButton")[0].getElementsByTagName("input")[0];
-    botonAbordar.onclick = function(){
-        esperarElemento(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar)
-        .then(finalizar)
-        .catch(()=>alert("error"))
-    };
 }
 
 function accionarRapinia() {
@@ -45,14 +33,13 @@ function accionarRapinia() {
     var columnaDeBotones = fortalezaMenu.getElementsByClassName("action");
     var botonAClickear = columnaDeBotones[1].getElementsByClassName("button capture")[0];
     setTimeout(()=>{botonAClickear.click()},1000);
-    return esperarElemento(function(){return(existeID("missionProgressBar") || existeID("captcha"))},tiempoCorto,expirar);
+    return esperarCondicion(function(){return(existeID("missionProgressBar") || existeID("captcha"))},tiempoCorto,expirar);
 }
 
-function esperarElemento(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,...args) {
+function esperarCondicion(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,...args) {
     return new Promise((resolve,reject) => {
-        var ejecutor;
         var tiempoRestante = tiempoAEsperarEnSegundos*1000;
-        ejecutor = setInterval(function(){
+        var ejecutor = setInterval(function(){
             if(condicionACumplir(...args)) {
                 clearInterval(ejecutor);
                 resolve();
@@ -66,18 +53,14 @@ function esperarElemento(condicionACumplir,tiempoMsEntreEjecucion,expiraTiempo,.
     })
 }
 
-function createDelay(tiempo) {
-    return new Promise ((resolve) => {setTimeout(resolve,tiempo)});
-}
-
 function abrirMenu(elementoClickeable, menuID) {
     elementoClickeable.click();
-    return esperarElemento(existeID,tiempoLargo,expirar,menuID);
+    return esperarCondicion(existeID,tiempoLargo,expirar,menuID);
 }
 
 function cerrarMenu(elementoClickeable, menuID) {
     elementoClickeable.click();
-    return esperarElemento(function(menuNombre){return !existeID(menuNombre)},tiempoCorto,expirar,menuID);
+    return esperarCondicion(function(menuNombre){return !existeID(menuNombre)},tiempoCorto,expirar,menuID);
 }
 
 function cerrarMenuRapinia() {
@@ -104,28 +87,28 @@ function ponerEnCondiciones() {
     if(!existeID("pirateFortress")) {
         return abrirMenuRapinia();
     } else {
-        return new Promise((resolve,reject)=>{return resolve()});
+        return new Promise((resolve,reject)=>{resolve()});
     }
 }
 
 function hacerPiratas() {
     obtenerID("js_tabCrew").click();
-    esperarElemento(existeID,tiempoCorto,expirar,"CPToCrewInput")
+    esperarCondicion(existeID,tiempoCorto,expirar,"CPToCrewInput")
     .then(() => {
         setTimeout(()=>{obtenerID("CPToCrewSliderMax").click();},2000);
-         return esperarElemento(function() {
+         return esperarCondicion(function() {
             return Number(document.getElementsByClassName("sliderbg")[0].attributes.title.value)!==0;
         },tiempoCorto,expirar)
     }).then(() => {
         obtenerID("CPToCrewSubmit").click();
-        return esperarElemento(existeID,tiempoCorto,expirar,"ongoingConversion");
+        return esperarCondicion(existeID,tiempoCorto,expirar,"ongoingConversion");
     }).then(()=> {
         obtenerID("js_tabBootyQuest").click();
     });
 }
 
 //----------------------WEB PART
-function imagenToBase64() {
+function prepararImagenParaEnviar() {
     return new Promise((response, reject) => {
         var image = document.getElementsByClassName('captchaImage')[0];
         image.crossOrigin = 'Anonymous';
@@ -148,29 +131,31 @@ function enviarCaptcha(apiKey, metodo, img64){
 }
 
 function atenderCaptchav2() {
-    reiniciarCaptchaSolution();
     var method='base64';
     var apiKey='140cc084101706e4476413925a9d9b09';
-    imagenToBase64()
-    .then(function(imgBase64) {return enviarCaptcha(apiKey,method,imgBase64)})
+    reiniciarCaptchaSolution();
+    prepararImagenParaEnviar()
+    .then(imgBase64 => enviarCaptcha(apiKey,method,imgBase64))
     .then(response => response.text())
-    .then(data =>{return new Promise((resolve,reject) => {
-                                        captchaSolution.idCaptcha = getInfo(data); 
-                                        return resolve();
-                                    });
-                })
-    .then(() => {setTimeout(getCaptchaResuelto,8000,apiKey,captchaSolution.idCaptcha)
-                return esperarElemento(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar);})
-    .then(() => {
-                var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
-                var botonAbordar = getBotonAbordarCaptcha();
-                botonAbordar.onclick = function(){
-                    esperarElemento(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar)
-                    .then(finalizar).catch(()=>alert("error"))};
-                obtenerID('captcha').value = captchaSolution.solucion;
-                return esperarElemento(function(){return obtenerID('captcha').value.length!==0;},tiempoCorto,!expirar);
-                })
+    .then(data => wrapFunctionIntoPromise(() => captchaSolution.idCaptcha = getInfo(data)))
+    .then(() => esperarSolucion())
+    .then(() => ponerSolucionCaptcha())
     .then(() => getBotonAbordarCaptcha().click());
+}
+
+function esperarSolucion() {
+    setTimeout(getCaptchaResuelto,8000,apiKey,captchaSolution.idCaptcha)
+    return esperarCondicion(function(){return captchaSolution.solucion!==null},tiempoLargo,!expirar);
+}
+
+function ponerSolucionCaptcha() {
+    var urlAnterior = document.getElementsByClassName("captchaImage")[0].attributes.src;
+    getBotonAbordarCaptcha().botonAbordar.onclick = function() {
+                                esperarCondicion(function(){return(existeID("missionProgressBar") || otroCaptcha(urlAnterior))},tiempoCorto,expirar)
+                                .then(finalizar)
+                            };
+    obtenerID('captcha').value = captchaSolution.solucion;
+    return esperarCondicion(function(){return obtenerID('captcha').value.length!==0;},tiempoCorto,!expirar);
 }
 
 function getCaptchaResuelto(apiKey, idCaptcha) {
@@ -179,15 +164,7 @@ function getCaptchaResuelto(apiKey, idCaptcha) {
     Object.keys(data).forEach(key => url.searchParams.append(key, data[key]));
     fetch(url,{method: "GET"})
     .then(response => response.text())
-    .then(data => {
-        if(data==='CAPCHA_NOT_READY') {
-            setTimeout(getCaptchaResuelto,8000,apiKey,idCaptcha);
-        } else if (data==='ERROR_CAPTCHA_UNSOLVABLE'){
-            captchaSolution.solucion = 'error'
-        }else {
-            captchaSolution.solucion = getInfo(data);
-        }
-    })
+    .then(data => procesarRespuestaCaptchaResulto(data));
 }
 
 function getInfo(respuesta) {
@@ -202,4 +179,18 @@ function getBotonAbordarCaptcha() {
     var fortalezaMenu = obtenerID("pirateFortress");
     var botonAbordar = document.getElementsByClassName("centerButton")[0].getElementsByTagName("input")[0];
     return botonAbordar;
+}
+
+function wrapFunctionIntoPromise(funcion) {
+    return new Promise((resolve)=>{funcion();resolve()})
+}
+
+function procesarRespuestaCaptchaResulto(respuesta) {
+    if(respuesta==='CAPCHA_NOT_READY') {
+        setTimeout(getCaptchaResuelto,8000,apiKey,idCaptcha);
+    } else if (respuesta==='ERROR_CAPTCHA_UNSOLVABLE'){
+        captchaSolution.solucion = 'error'
+    }else {
+        captchaSolution.solucion = getInfo(respuesta);
+    }
 }
