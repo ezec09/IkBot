@@ -18,6 +18,7 @@ function obtenerID(nombreID) {
 function run() {
     if(hudika === null) {
         hudika = new Hudika();
+        hudika.updatearStatus();
         hudika.loguear("Scrip iniciando...");
     }
     ponerEnCondiciones()
@@ -27,13 +28,17 @@ function run() {
 }
 
 function finalizar() {
-    hudika.loguear("Mision de rapinia iniciada");
 	if(existeID("captcha")) {
         hudika.loguear("Resolviendo captcha...");
         setTimeout(atenderCaptchav2,5000);
 	}else {
+        hudika.loguear("Mision de rapinia iniciada");
         hacerPiratas();
-        esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar,tiempoLimite).then(run);
+        esperarCondicion(()=>{return !existeID("missionProgressBar")},tiempoLargo,!expirar,tiempoLimite)
+        .then(() => {
+            setTimeout(hudika.misionFinalizada(),100);
+            run();
+        });
 	}	
 }
 
@@ -80,7 +85,7 @@ function cerrarMenuRapinia() {
 }
 
 function abrirMenuRapinia() {
-	var botonFortaleza = document.getElementById("js_CityPosition17Link");
+	var botonFortaleza = obtenerID("js_CityPosition17Link");
     return abrirMenu(botonFortaleza,"pirateFortress")
 }
 
@@ -106,11 +111,11 @@ function hacerPiratas() {
         hudika.loguear("Produccion de piratas iniciada");
 		setTimeout(abrirMenuTripulacion,2000);
 		setTimeout(maximizarBarraYActivar,3000);
-		setTimeout(abrirMenuRapinia,4000);
+		setTimeout(abrirMenuMision,4000);
 	}
 }
 
-function abrirMenuRapinia() {
+function abrirMenuMision() {
 	document.getElementById("js_tabBootyQuest").click();
 }
 
@@ -221,6 +226,8 @@ function Hudika() {
     this.contenedor = document.createElement('div');
     this.status = document.createElement('p');
     this.logger = document.createElement('p');
+    this.misionesRealizadas = 0;
+    this.fechaInicio = new Date();
     function inicializarContenedor(contenedor){
         contenedor.style.backgroundColor = 'white';
         contenedor.style.width = '500px';
@@ -248,6 +255,25 @@ function Hudika() {
     this.body.insertBefore(this.contenedor,this.body.firstChild);
     this.contenedor.append(this.status);
     this.contenedor.append(this.logger);
+    this.misionFinalizada = function() {
+        this.misionesRealizadas++;
+        this.updatearStatus();
+    };
+    this.updatearStatus = function(){
+        var horaActual = new Date();
+        var datetime = this.fechaInicio.getHours() + ":"  
+        + this.fechaInicio.getMinutes() + ":" 
+        + this.fechaInicio.getSeconds();
+        this.status.textContent = 'Script iniciado a las: ' + datetime;
+        this.status.appendChild(document.createElement('br'));
+        this.status.append("Tiempo transcurrido: " + (horaActual.getHours() - this.fechaInicio.getHours()) + " horas y " + Math.abs((horaActual.getMinutes() - this.fechaInicio.getMinutes())) + " minutos") ;
+        this.status.appendChild(document.createElement('br'));
+        this.status.append("Misiones realizadas con script:" + this.misionesRealizadas);
+        this.status.appendChild(document.createElement('br'));
+        this.status.append("Puntos totales ganados: " + this.misionesRealizadas*115);
+        this.status.appendChild(document.createElement('br'));
+        this.status.append("Nota: Aguante Urraca Paca y esto se actualiza cada vez q termina una mision");
+    };
     this.loguear = function(texto){setTimeout(() => {
         var currentdate = new Date(); 
         var datetime = currentdate.getHours() + ":"  
@@ -255,5 +281,6 @@ function Hudika() {
                         + currentdate.getSeconds();
         this.logger.append(datetime + " Log: " + texto);
         this.logger.appendChild(document.createElement('br'))
+        this.logger.scrollTop = this.logger.scrollHeight;
     },100)};
 }
