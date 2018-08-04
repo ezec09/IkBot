@@ -1,0 +1,20 @@
+{
+	"name": "Cheat Ikariam",
+	"version": "1.0",
+	"manifest_version": 2,
+	"description": "Rapinia Farm",
+	"browser_action": {
+		"default_title": "A farmear weoon",
+		"default_popup": "popup.html"
+    },
+	"background": {
+		"scripts": ["background.js"],
+		"persistent": false
+	},
+	"permissions": [
+		"https://*/*",
+		"tabs",
+		"storage",
+		"activeTab"
+	]
+}

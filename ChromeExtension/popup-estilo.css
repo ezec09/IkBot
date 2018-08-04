@@ -1,0 +1,16 @@
+body {
+	width: 200px;
+}
+
+.botonContainer {
+	text-align: center;
+}
+
+#edicion {
+	display: grid;
+    grid-template-columns: 150px 50px;
+}
+
+#edicion input {
+	margin-left: 8px;
+}
