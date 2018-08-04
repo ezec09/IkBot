@@ -1,25 +1,32 @@
-var botonActivadoTexto;
 var botonParaActivar = document.getElementById("botonParaActivar");
 
 botonParaActivar.onclick = function() {
-	chrome.runtime.sendMessage({msg: botonParaActivar.innerText},function(response){});
+	enviarMensajeABackground({msg: botonParaActivar.innerText});
 	if(botonParaActivar.innerText == "Activar") {
 		botonParaActivar.innerText = "Desactivar";
-		chrome.storage.local.set({'botonActivadoTexto': "Desactivar"},function(){});
+		guardar({'botonActivadoTexto': "Desactivar"},function(){});
 	} else {
 		botonParaActivar.innerText = "Activar";
-		chrome.storage.local.set({"botonActivadoTexto": "Activar"},function(){});
+		guardar({'botonActivadoTexto': "Activar"},function(){});
 	}
 }
 
 function init(){
 	chrome.storage.local.get("botonActivadoTexto",function(resultado){
-		botonActivadoTexto = resultado.botonActivadoTexto;
+		var botonActivadoTexto = resultado.botonActivadoTexto;
 		if(botonActivadoTexto!=null) {
 			botonParaActivar = document.getElementById("botonParaActivar");
 			botonParaActivar.innerText = botonActivadoTexto;
 		}
 	});
+}
+
+function guardar(objeto,callback){
+	chrome.storage.local.set(objeto,callback);
+}
+
+function enviarMensajeABackground(mensaje,response){
+	chrome.runtime.sendMessage(mensaje,response);
 }
 
 init();
